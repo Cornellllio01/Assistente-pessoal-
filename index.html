@@ -464,7 +464,7 @@
         }
 
         // Analisar comando de voz - VERSÃO CORRIGIDA
-     // Substitua APENAS a função parseVoiceCommand por esta versão:
+        // Substitua APENAS a função parseVoiceCommand por esta versão:
 function parseVoiceCommand(text) {
     console.log('Processando comando:', text);
     
@@ -512,15 +512,6 @@ function parseVoiceCommand(text) {
         category: category
     };
 }
-            
-            console.log('Resultado:', { value, description, category });
-            return {
-                value: value,
-                description: description || 'Despesa por voz',
-                category: category
-            };
-        }
-
         // Determinar categoria automaticamente
         function determineCategory(description) {
             const categoryKeywords = {
