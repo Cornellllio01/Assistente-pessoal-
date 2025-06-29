@@ -464,58 +464,54 @@
         }
 
         // Analisar comando de voz - VERSÃO CORRIGIDA
-        function parseVoiceCommand(text) {
-            console.log('Processando comando:', text);
-            
-            // Expressão regular melhorada para capturar valores
-            const valueMatch = text.match(/(\d+[\.,]?\d*)|(um|dois|três|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|duzentos|trezentos|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil)/gi);
-            
-            if (!valueMatch) {
-                console.log('Nenhum valor numérico detectado');
-                return null;
+     // Substitua APENAS a função parseVoiceCommand por esta versão:
+function parseVoiceCommand(text) {
+    console.log('Processando comando:', text);
+    
+    const valueMatch = text.match(/(\d+[\.,]?\d*)|(um|dois|três|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|duzentos|trezentos|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil)/gi);
+    
+    let value = 0;
+    if (valueMatch) {
+        const numberMap = {
+            'um': 1, 'dois': 2, 'três': 3, 'tres': 3, 'quatro': 4, 'cinco': 5,
+            'seis': 6, 'sete': 7, 'oito': 8, 'nove': 9, 'dez': 10,
+            'onze': 11, 'doze': 12, 'treze': 13, 'quatorze': 14, 'quinze': 15,
+            'dezesseis': 16, 'dezessete': 17, 'dezoito': 18, 'dezenove': 19,
+            'vinte': 20, 'trinta': 30, 'quarenta': 40, 'cinquenta': 50,
+            'sessenta': 60, 'setenta': 70, 'oitenta': 80, 'noventa': 90,
+            'cem': 100, 'duzentos': 200, 'trezentos': 300, 'quatrocentos': 400,
+            'quinhentos': 500, 'seiscentos': 600, 'setecentos': 700,
+            'oitocentos': 800, 'novecentos': 900, 'mil': 1000
+        };
+
+        for (const item of valueMatch) {
+            if (item.includes(',') || item.includes('.')) {
+                value += parseFloat(item.replace(',', '.'));
+            } else if (!isNaN(item)) {
+                value += parseInt(item);
+            } else if (numberMap[item.toLowerCase()]) {
+                value += numberMap[item.toLowerCase()];
             }
-            
-            // Mapeamento de números por extenso
-            const numberMap = {
-                'um': 1, 'dois': 2, 'três': 3, 'tres': 3, 'quatro': 4, 'cinco': 5,
-                'seis': 6, 'sete': 7, 'oito': 8, 'nove': 9, 'dez': 10,
-                'onze': 11, 'doze': 12, 'treze': 13, 'quatorze': 14, 'quinze': 15,
-                'dezesseis': 16, 'dezessete': 17, 'dezoito': 18, 'dezenove': 19,
-                'vinte': 20, 'trinta': 30, 'quarenta': 40, 'cinquenta': 50,
-                'sessenta': 60, 'setenta': 70, 'oitenta': 80, 'noventa': 90,
-                'cem': 100, 'duzentos': 200, 'trezentos': 300, 'quatrocentos': 400,
-                'quinhentos': 500, 'seiscentos': 600, 'setecentos': 700,
-                'oitocentos': 800, 'novecentos': 900, 'mil': 1000
-            };
+        }
+    }
 
-            // Converter valores capturados
-            let value = 0;
-            for (const item of valueMatch) {
-                if (item.includes(',') || item.includes('.')) {
-                    // Valores decimais
-                    value += parseFloat(item.replace(',', '.'));
-                } else if (!isNaN(item)) {
-                    // Números inteiros
-                    value += parseInt(item);
-                } else if (numberMap[item.toLowerCase()]) {
-                    // Números por extenso
-                    value += numberMap[item.toLowerCase()];
-                }
-            }
+    if (value <= 0) return null;
 
-            if (value <= 0) {
-                console.log('Valor inválido detectado');
-                return null;
-            }
+    // CORREÇÃO MÍNIMA (APENAS ESTA PARTE FOI ALTERADA):
+    const description = text
+        .replace(/(\d+[\.,]?\d*)|(r\$|\$|reais?|com|de|gastei|paguei|despesa)/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s*r\$\s*/gi, '') // LINHA ADICIONADA - remove qualquer "r$" restante
+        .trim();
 
-            // Extrair descrição removendo números e palavras-chave
-            const description = text
-                .replace(/(\d+[\.,]?\d*)|(reais?|com|de|gastei|paguei|despesa)/gi, '')
-                .replace(/\s{2,}/g, ' ')
-                .trim();
-
-            // Determinar categoria
-            const category = determineCategory(description);
+    const category = determineCategory(description);
+    
+    return {
+        value: value,
+        description: description || 'Despesa por voz',
+        category: category
+    };
+}
             
             console.log('Resultado:', { value, description, category });
             return {
