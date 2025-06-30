@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assistente de Despesas por Voz</title>
     <style>
-        /* SEU CSS AQUI */
         * {
             margin: 0;
             padding: 0;
@@ -279,6 +278,21 @@
             border-left: 4px solid #ffd700;
         }
 
+        .auth-section {
+            grid-column: 1 / -1;
+            background: #f0f8ff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            text-align: center;
+            border: 2px solid #d0e6ff;
+        }
+
+        .auth-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
         @media (max-width: 768px) {
             .content {
                 grid-template-columns: 1fr;
@@ -316,6 +330,32 @@
                 <h2>Despesas Recentes</h2>
                 <div id="expensesList">
                     <!-- Despesas serão adicionadas aqui -->
+                </div>
+            </div>
+
+            <!-- Seção de Autenticação -->
+            <div class="auth-section">
+                <h2>Autenticação</h2>
+                <div id="auth-forms">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="auth-email">Email:</label>
+                            <input type="email" id="auth-email" placeholder="seu@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="auth-password">Senha:</label>
+                            <input type="password" id="auth-password" placeholder="********">
+                        </div>
+                    </div>
+                    <div class="form-row" style="justify-content: center; gap: 10px;">
+                        <button class="add-btn" id="signup-btn">Cadastrar</button>
+                        <button class="add-btn" id="login-btn">Entrar</button>
+                        <button class="add-btn" id="magic-link-btn" style="background: linear-gradient(135deg, #ffc107 0%, #ffdb58 100%);">Magic Link</button>
+                    </div>
+                </div>
+                <div id="user-info" style="text-align: center; margin-top: 20px; display: none;">
+                    <p>Bem-vindo(a), <strong id="user-email"></strong>!</p>
+                    <button class="add-btn" id="logout-btn" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%); margin-top: 10px;">Sair</button>
                 </div>
             </div>
 
@@ -378,13 +418,101 @@
     <script>
         // Suas credenciais do Supabase (SUBSTITUA PELAS SUAS REAIS! )
         const SUPABASE_URL = 'https://ilnpbrkjutypjuyaeyyk.supabase.co'; // Ex: https://abcdefg12345.supabase.co
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsbnBicmtqdXR5cGp1eWFleXlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyNDQyMzAsImV4cCI6MjA2NjgyMDIzMH0.AE-Hie67CqfEAxO_oT7KDbcOTV7L13658m8OSecY67g'; // Ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsbnBicmtqdXR5cGp1eWFleXlrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTI0NDIzMCwiZXhwIjoyMDY2ODIwMjMwfQ.HWMx-mNscrTvfv_q__FO7EmqU1gj-QqF0el_G73bUjA'; // Ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
         const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY );
 
         let expenses = [];
         let recognition;
         let isListening = false;
+        let currentUser = null; // Variável para armazenar o usuário logado
+
+        // Função para atualizar a UI com base no estado de autenticação
+        function updateAuthUI(user) {
+            const authForms = document.getElementById('auth-forms');
+            const userInfo = document.getElementById('user-info');
+            const userEmail = document.getElementById('user-email');
+            const mainContent = document.querySelector('.content'); // Onde estão as despesas, formulário, etc.
+
+            if (user) {
+                currentUser = user;
+                authForms.style.display = 'none';
+                userInfo.style.display = 'block';
+                userEmail.textContent = user.email;
+                mainContent.style.display = 'grid'; // Mostra o conteúdo principal
+                loadExpenses(); // Carrega as despesas do usuário logado
+            } else {
+                currentUser = null;
+                authForms.style.display = 'block';
+                userInfo.style.display = 'none';
+                userEmail.textContent = '';
+                mainContent.style.display = 'none'; // Esconde o conteúdo principal
+                expenses = []; // Limpa as despesas locais
+                renderExpenses(); // Renderiza vazio
+                updateTotal(); // Zera o total
+            }
+        }
+
+        // Event listener para mudanças de estado de autenticação
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event, session);
+            updateAuthUI(session?.user);
+        });
+
+        // Funções de Autenticação
+        async function signUp() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const { data, error } = await supabase.auth.signUp({ email, password });
+
+            if (error) {
+                alert(`Erro ao cadastrar: ${error.message}`);
+                console.error('Erro ao cadastrar:', error);
+            } else if (data.user) {
+                alert('Cadastro realizado! Verifique seu e-mail para confirmar a conta.');
+                console.log('Usuário cadastrado:', data.user);
+            } else {
+                alert('Cadastro iniciado. Verifique seu e-mail para confirmar a conta.');
+            }
+        }
+
+        async function signInWithPassword() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                alert(`Erro ao fazer login: ${error.message}`);
+                console.error('Erro ao fazer login:', error);
+            } else if (data.user) {
+                alert('Login realizado com sucesso!');
+                console.log('Usuário logado:', data.user);
+                // updateAuthUI é chamado automaticamente pelo onAuthStateChange
+            }
+        }
+
+        async function signInWithMagicLink() {
+            const email = document.getElementById('auth-email').value;
+            const { error } = await supabase.auth.signInWithOtp({ email });
+
+            if (error) {
+                alert(`Erro ao enviar Magic Link: ${error.message}`);
+                console.error('Erro ao enviar Magic Link:', error);
+            } else {
+                alert('Magic Link enviado! Verifique seu e-mail.');
+            }
+        }
+
+        async function signOut() {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                alert(`Erro ao sair: ${error.message}`);
+                console.error('Erro ao sair:', error);
+            } else {
+                alert('Você saiu da sua conta.');
+                // updateAuthUI é chamado automaticamente pelo onAuthStateChange
+            }
+        }
 
         // Inicializar reconhecimento de voz
         function initSpeechRecognition() {
@@ -419,7 +547,6 @@
                     document.getElementById('status').textContent = 'Clique no microfone e fale sua despesa';
                     document.getElementById('status').className = 'status ready';
                     
-                    // Resetar o estado para evitar conflitos
                     setTimeout(() => {
                         isListening = false;
                     }, 100);
@@ -455,7 +582,6 @@
                     document.getElementById('status').textContent = errorMessage;
                     document.getElementById('status').className = statusClass;
                     
-                    // Resetar completamente em caso de erro
                     setTimeout(() => {
                         isListening = false;
                         if (event.error !== 'not-allowed') {
@@ -475,7 +601,6 @@
             document.getElementById('status').textContent = 'Processando comando...';
             document.getElementById('status').className = 'status processing';
 
-            // Extrair valor e descrição do comando
             const expense = parseVoiceCommand(transcript.toLowerCase());
             
             if (expense) {
@@ -565,19 +690,25 @@
             return value.toFixed(2).replace('.', ',');
         }
 
-        // Adicionar despesa (AGORA SALVA NO SUPABASE)
+        // Adicionar despesa (AGORA SALVA NO SUPABASE COM user_id)
         async function addExpense(description, value, category) {
+            if (!currentUser) {
+                alert('Por favor, faça login para adicionar despesas.');
+                return false;
+            }
+
             const newExpense = {
                 description: description,
                 value: value,
                 category: category,
-                date: new Date().toLocaleDateString('pt-BR') 
+                date: new Date().toLocaleDateString('pt-BR'),
+                user_id: currentUser.id // Adiciona o ID do usuário logado
             };
 
             const { data, error } = await supabase
-                .from('expenses') // Nome da sua tabela no Supabase
+                .from('expenses')
                 .insert([newExpense])
-                .select(); // Retorna o item inserido com o ID gerado
+                .select();
 
             if (error) {
                 console.error('Erro ao adicionar despesa no Supabase:', error);
@@ -622,11 +753,16 @@
 
         // Deletar despesa (AGORA DELETA DO SUPABASE)
         async function deleteExpense(id) {
+            if (!currentUser) {
+                alert('Por favor, faça login para deletar despesas.');
+                return;
+            }
             if (confirm('Tem certeza que deseja excluir esta despesa?')) {
                 const { error } = await supabase
-                    .from('expenses') // Nome da sua tabela
+                    .from('expenses')
                     .delete()
-                    .eq('id', id); // Deleta onde o ID é igual
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id); // Garante que só o dono pode deletar
 
                 if (error) {
                     console.error('Erro ao deletar despesa do Supabase:', error);
@@ -651,105 +787,4 @@
 
             expensesList.innerHTML = expenses.map(expense => `
                 <div class="expense-item">
-                    <div class="expense-details">
-                        <div class="expense-category">${getCategoryName(expense.category)} • ${expense.date}</div>
-                        <div class="expense-description">${expense.description}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div class="expense-value">R$ ${formatCurrency(expense.value)}</div>
-                        <button class="delete-btn" onclick="deleteExpense(${expense.id})">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Obter nome da categoria
-        function getCategoryName(category) {
-            const names = {
-                'alimentacao': '🍽️ Alimentação',
-                'transporte': '🚗 Transporte',
-                'saude': '🏥 Saúde',
-                'lazer': '🎭 Lazer',
-                'casa': '🏠 Casa',
-                'trabalho': '💼 Trabalho',
-                'outros': '📦 Outros'
-            };
-            return names[category] || '📦 Outros';
-        }
-
-        // Mostrar ajuda sobre permissões
-        function showPermissionHelp() {
-            if (document.getElementById('permissionHelp')) {
-                return;
-            }
-
-            const helpDiv = document.createElement('div');
-            helpDiv.id = 'permissionHelp';
-            helpDiv.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #fff3cd;
-                border: 2px solid #ffc107;
-                border-radius: 10px;
-                padding: 20px;
-                max-width: 350px;
-                z-index: 1000;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            `;
-            helpDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                    <h4 style="margin: 0; color: #856404;">🎤 Como permitir o microfone:</h4>
-                    <button onclick="document.getElementById('permissionHelp').remove()" style="background: none; border: none; font-size: 18px; cursor: pointer;">×</button>
-                </div>
-                <ol style="margin: 0; padding-left: 20px; color: #856404;">
-                    <li>Clique no ícone 🔒 ou 🎤 na barra de endereço</li>
-                    <li>Selecione "Permitir" para microfone</li>
-                    <li>Recarregue a página (F5)</li>
-                    <li>Tente usar o comando de voz novamente</li>
-                </ol>
-                <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #856404;">
-                    <strong>Dica:</strong> Se não funcionar, tente usar no Chrome ou Edge
-                </p>
-            `;
-            document.body.appendChild(helpDiv);
-            
-            setTimeout(() => {
-                const helpToRemove = document.getElementById('permissionHelp');
-                if (helpToRemove && document.body.contains(helpToRemove)) {
-                    document.body.removeChild(helpToRemove);
-                }
-            }, 10000);
-        }
-
-        // Atualizar total
-        function updateTotal() {
-            const total = expenses.reduce((sum, expense) => sum + expense.value, 0);
-            document.getElementById('totalValue').textContent = `R$ ${formatCurrency(total)}`;
-        }
-
-        // NOVO: Função para carregar as despesas do Supabase
-        async function loadExpenses() {
-            const { data, error } = await supabase
-                .from('expenses') // Nome da sua tabela no Supabase
-                .select('*')
-                .order('date', { ascending: false }); // Ordena como preferir
-
-            if (error) {
-                console.error('Erro ao carregar despesas do Supabase:', error);
-                alert('Erro ao carregar despesas. Verifique o console para mais detalhes.');
-                expenses = []; // Em caso de erro, inicializa vazio
-            } else {
-                expenses = data.map(exp => ({
-                    ...exp,
-                    value: parseFloat(exp.value) 
-                }));
-                console.log('Despesas carregadas do Supabase:', expenses);
-            }
-        }
-
-        // Event listeners
-        document.getElementById('voiceBtn').addEventListener('click', async function() {
-            if (isListening) {
-                recognition.stop();
-                return;
+                    <
