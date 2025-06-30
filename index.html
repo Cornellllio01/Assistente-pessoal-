@@ -603,7 +603,13 @@ function parseVoiceCommand(text) {
         }
 
         // Mostrar ajuda sobre permissões
+                // Mostrar ajuda sobre permissões
         function showPermissionHelp() {
+            // Evita criar múltiplos helps se já existir um
+            if (document.getElementById('permissionHelp')) {
+                return;
+            }
+
             const helpDiv = document.createElement('div');
             helpDiv.id = 'permissionHelp';
             helpDiv.style.cssText = `
@@ -637,11 +643,14 @@ function parseVoiceCommand(text) {
             
             // Remover automaticamente após 10 segundos
             setTimeout(() => {
-                if (document.getElementById('permissionHelp')) {
-                    document.getElementById('permissionHelp').remove();
+                const helpToRemove = document.getElementById('permissionHelp');
+                // Verifica se o elemento existe E se ele ainda é filho do body antes de tentar remover
+                if (helpToRemove && document.body.contains(helpToRemove)) {
+                    document.body.removeChild(helpToRemove);
                 }
             }, 10000);
         }
+
 
         // Atualizar total
         function updateTotal() {
